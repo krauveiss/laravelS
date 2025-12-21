@@ -5,10 +5,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\DevlogController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::get('/devlog/posts', [DevlogController::class, 'index']);
+Route::post('/devlog/posts', [DevlogController::class, 'store'])->middleware('auth:sanctum');
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -23,6 +26,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{projectId}/members/{userId}', [ProjectController::class, 'removeMember']);
         Route::get('/{id}/tasks', [TaskController::class, 'index']);
         Route::post('/{id}/tasks', [TaskController::class, 'store']);
+        Route::put('/{projectId}/members/{userId}/role', [ProjectController::class, 'updateMemberRole']);
     });
 
     Route::prefix('tasks')->group(function () {

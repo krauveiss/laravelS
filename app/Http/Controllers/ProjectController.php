@@ -334,4 +334,52 @@ class ProjectController extends Controller
             ], 500);
         }
     }
+
+    public function updateMemberRole(Request $request, string $projectId, string $userId): JsonResponse
+    {
+        try {
+            $user = request()->user();
+
+            $ownerMembership = ProjectMembership::where('user_id', $user->id)
+                ->where('project_id', $projectId)
+                ->where('is_owner', true)
+                ->first();
+
+            if (!$ownerMembership) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Only project owner can change member roles'
+                ], 403);
+            }
+
+            $validated = $request->validate([
+                'role' => 'required|string|in:BACKEND,FRONTEND,MOBILE,DESIGN,TESTING'
+            ]);
+
+            $memberMembership = ProjectMembership::where('user_id', $userId)
+                ->where('project_id', $projectId)
+                ->first();
+
+            if (!$memberMembership) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Member not found'
+                ], 404);
+            }
+
+            $memberMembership->role = $validated['role'];
+            $memberMembership->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Member role updated successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to update member role',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }
