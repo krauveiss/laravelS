@@ -23,10 +23,10 @@ class DevlogController extends Controller
         $key = $request->header('X-DEV-KEY');
         $validKey = env('X_DEV_KEY');
         if (!$validKey) {
-            abort(403);
+            abort($validKey);
         }
         if ($key != $validKey) {
-            abort(403);
+            abort($validKey);
         }
 
         $post = DevlogPost::create([
