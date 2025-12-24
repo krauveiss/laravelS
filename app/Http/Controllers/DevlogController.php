@@ -21,23 +21,25 @@ class DevlogController extends Controller
     public function store(Request $request)
     {
         $key = $request->header('X-DEV-KEY');
-        $validKey = env('X_DEV_KEY');
+        $validKey = config('dev.key');
+
         if (!$validKey) {
-            abort(1);
+            abort(500);
         }
-        if ($key != $validKey) {
-            abort(2);
+
+        if ($key !== $validKey) {
+            abort(403);
         }
 
         $post = DevlogPost::create([
             'id' => Str::uuid(),
             'title' => $request->title,
-            'content' => $request->content
+            'content' => $request->content,
         ]);
 
         return response()->json([
             'status' => 'success',
-            'data' => $post
+            'data' => $post,
         ]);
     }
 }
