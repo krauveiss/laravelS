@@ -59,6 +59,16 @@ class TaskController extends Controller
                 }
             }
 
+            $project = Project::find($projectId);
+            if ($project && $project->deadline && isset($validated['deadline'])) {
+                if (strtotime($validated['deadline']) > strtotime($project->deadline)) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Task deadline cannot be later than project deadline'
+                    ], 400);
+                }
+            }
+
             $task = Task::create([
                 'id' => Str::uuid(),
                 'project_id' => $projectId,
@@ -161,6 +171,17 @@ class TaskController extends Controller
 
             $task = Task::find($id);
 
+            if (isset($validated['deadline'])) {
+                $project = Project::find($task->project_id);
+                if ($project && $project->deadline) {
+                    if (strtotime($validated['deadline']) > strtotime($project->deadline)) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Task deadline cannot be later than project deadline'
+                        ], 400);
+                    }
+                }
+            }
             if (!$task) {
                 return response()->json([
                     'status' => 'error',
