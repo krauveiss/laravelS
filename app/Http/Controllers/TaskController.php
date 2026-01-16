@@ -44,6 +44,15 @@ class TaskController extends Controller
                         'message' => 'Parent task does not belong to this project'
                     ], 400);
                 }
+                
+                if ($parentTask && $parentTask->deadline && isset($validated['deadline'])) {
+                    if (strtotime($validated['deadline']) > strtotime($parentTask->deadline)) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Subtask deadline cannot be later than parent task deadline'
+                        ], 400);
+                    }
+                }
             }
 
             if (isset($validated['owner_id'])) {
