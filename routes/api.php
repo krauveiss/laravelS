@@ -12,6 +12,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::get('/devlog/posts', [DevlogController::class, 'index']);
 Route::post('/devlog/posts', [DevlogController::class, 'store'])->middleware('auth:sanctum');
+Route::patch('/devlog/{id}', [DevlogController::class, 'update'])->middleware('auth:sanctum');
+Route::delete('/devlog/{id}', [DevlogController::class, 'destroy'])->middleware('auth:sanctum');
 
 Route::middleware('auth:sanctum')->group(function () {
 
