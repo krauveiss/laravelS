@@ -6,6 +6,7 @@ use App\Models\Task;
 use App\Models\Project;
 use App\Models\ProjectMembership;
 use App\Models\User;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -44,7 +45,7 @@ class TaskController extends Controller
                         'message' => 'Parent task does not belong to this project'
                     ], 400);
                 }
-                
+
                 if ($parentTask && $parentTask->deadline && isset($validated['deadline'])) {
                     if (strtotime($validated['deadline']) > strtotime($parentTask->deadline)) {
                         return response()->json([
@@ -180,23 +181,21 @@ class TaskController extends Controller
 
             $task = Task::find($id);
 
-            if (isset($validated['deadline'])) {
-                $project = Project::find($task->project_id);
-                if ($project && $project->deadline) {
-                    if (strtotime($validated['deadline']) > strtotime($project->deadline)) {
-                        return response()->json([
-                            'status' => 'error',
-                            'message' => 'Task deadline cannot be later than project deadline'
-                        ], 400);
-                    }
-                }
-            }
             if (!$task) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Task not found'
                 ], 404);
             }
+
+            $validated = $request->validate([
+                'title' => 'sometimes|string|max:255',
+                'description' => 'nullable|string',
+                'status' => 'sometimes|integer|in:0,1,2',
+                'deadline' => 'nullable|date',
+                'owner_email' => 'nullable|email|exists:users,email',
+            ]);
+
 
             $membership = ProjectMembership::where('user_id', $user->id)
                 ->where('project_id', $task->project_id)
@@ -209,13 +208,43 @@ class TaskController extends Controller
                 ], 403);
             }
 
-            $validated = $request->validate([
-                'title' => 'sometimes|string|max:255',
-                'description' => 'nullable|string',
-                'status' => 'sometimes|integer|in:0,1,2',
-                'deadline' => 'nullable|date',
-                'owner_email' => 'nullable|email|exists:users,email',
-            ]);
+            if (isset($validated['deadline'])) {
+                $project = Project::find($task->project_id);
+                if ($project && $project->deadline) {
+                    if (strtotime($validated['deadline']) > strtotime($project->deadline)) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Task deadline cannot be later than project deadline'
+                        ], 400);
+                    }
+                }
+            }
+
+            if (isset($validated['deadline']) && $task->parent_task_id) {
+                $parentTask = Task::find($task->parent_task_id);
+
+                if ($parentTask && $parentTask->deadline) {
+                    if (strtotime($validated['deadline']) > strtotime($parentTask->deadline)) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Subtask deadline cannot be later than parent task deadline'
+                        ], 400);
+                    }
+                }
+            }
+
+            if (isset($validated['deadline']) && $task->subtasks()->exists()) {
+                $latestSubtaskDeadline = $task->subtasks()
+                    ->whereNotNull('deadline')
+                    ->max('deadline');
+
+                if ($latestSubtaskDeadline && strtotime($validated['deadline']) < strtotime($latestSubtaskDeadline)) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Parent task deadline cannot be earlier than its subtasks deadlines'
+                    ], 400);
+                }
+            }
 
             if (isset($validated['owner_email'])) {
                 $newOwner = User::where('email', $validated['owner_email'])->first();
@@ -233,6 +262,21 @@ class TaskController extends Controller
 
                 $task->owner_id = $newOwner->id;
                 unset($validated['owner_email']);
+            }
+
+            if (isset($validated['status']) && $validated['status'] == 2) {
+                if ($task->subtasks()->exists()) {
+                    $uncompletedSubtasks = $task->subtasks()
+                        ->where('status', '!=', 2)
+                        ->exists();
+
+                    if ($uncompletedSubtasks) {
+                        return response()->json([
+                            'status' => 'error',
+                            'message' => 'Cannot mark parent task as completed until all subtasks are completed'
+                        ], 400);
+                    }
+                }
             }
 
             $task->update($validated);

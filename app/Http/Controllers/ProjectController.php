@@ -6,6 +6,7 @@ use App\Models\Project;
 use App\Models\ProjectMembership;
 use App\Http\Requests\Project\CreateProjectRequest;
 use App\Http\Requests\Project\JoinProjectRequest;
+use App\Models\Task;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -196,6 +197,19 @@ class ProjectController extends Controller
             }
 
             $project = Project::find($id);
+            $projectId = $project->id;
+            $tasksWithLaterDeadlines = Task::where('project_id', $projectId)
+
+                ->whereNotNull('deadline')
+                ->where('deadline', '>', $request['deadline'])
+                ->exists();
+
+            if ($tasksWithLaterDeadlines) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Cannot set project deadline earlier than existing task deadlines'
+                ], 400);
+            }
 
             $project->update(request()->only(['name', 'description', 'subject', 'deadline', 'action_status']));
 
