@@ -201,14 +201,26 @@ class ProjectController extends Controller
             $tasksWithLaterDeadlines = Task::where('project_id', $projectId)
 
                 ->whereNotNull('deadline')
-                ->where('deadline', '>', $request['deadline'])
+                ->whereDate('deadline', '>', $request['deadline'])
                 ->exists();
-
             if ($tasksWithLaterDeadlines) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Cannot set project deadline earlier than existing task deadlines'
                 ], 400);
+            }
+
+            if (isset($request['action_status']) && $request['action_status'] == '2') {
+                $hasUncompletedTasks = Task::where('project_id', $project->id)
+                    ->where('status', '!=', 2)
+                    ->exists();
+
+                if ($hasUncompletedTasks) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Cannot mark project as completed while it has uncompleted tasks'
+                    ], 400);
+                }
             }
 
             $project->update(request()->only(['name', 'description', 'subject', 'deadline', 'action_status']));
